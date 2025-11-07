@@ -11,7 +11,7 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 
 // Usando o modelo estável. Você pode experimentar outros no futuro.
-const MODEL_NAME = 'gemini-pro';
+const MODEL_NAME = 'Gemini 2.5 Pro';
 
 // O prompt do sistema foi atualizado para focar em "Fanfics Interativas".
 const getSystemInstruction = (log: StoryLogData, history: Message[], fanficContext?: string): string => {
