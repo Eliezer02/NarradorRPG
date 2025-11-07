@@ -1,6 +1,5 @@
-
 import React from 'react';
-import type { StoryLogData } from '../types';
+import type { StoryLogData } from '../types'; // Importamos o tipo para garantir a consistência
 import { Icon } from './Icons';
 
 interface StoryLogProps {
@@ -35,13 +34,16 @@ export const StoryLog: React.FC<StoryLogProps> = ({ log, isOpen, onClose }) => {
             </button>
           </div>
           <div className="overflow-y-auto flex-grow pr-2">
-            <Section title="Cenário">
-              <p className="text-stone-700 font-serif leading-relaxed">{log.setting || "Ainda não definido."}</p>
+            {/* ====================================================================== */}
+            {/* MUDANÇAS AQUI: Usando os novos nomes das propriedades */}
+            {/* ====================================================================== */}
+            <Section title="Mundo e Cenário">
+              <p className="text-stone-700 font-serif leading-relaxed">{log.worldAndSetting || "Ainda não definido."}</p>
             </Section>
-            <Section title="Personagens Notáveis">
-              {log.characters.length > 0 ? (
+            <Section title="Elenco de Personagens">
+              {log.castOfCharacters.length > 0 ? (
                 <ul className="list-none space-y-3">
-                  {log.characters.map((char, index) => (
+                  {log.castOfCharacters.map((char, index) => (
                     <li key={index} className="text-stone-700 font-serif leading-relaxed border-l-4 border-amber-200 pl-3">{char}</li>
                   ))}
                 </ul>
@@ -49,10 +51,10 @@ export const StoryLog: React.FC<StoryLogProps> = ({ log, isOpen, onClose }) => {
                 <p className="text-stone-600 italic font-serif">Nenhum personagem notável encontrado ainda.</p>
               )}
             </Section>
-            <Section title="Eventos Importantes">
-              {log.events.length > 0 ? (
+            <Section title="Pontos Chave da Trama">
+              {log.keyPlotPoints.length > 0 ? (
                 <ul className="list-none space-y-3">
-                  {log.events.map((event, index) => (
+                  {log.keyPlotPoints.map((event, index) => (
                     <li key={index} className="text-stone-700 font-serif leading-relaxed border-l-4 border-amber-200 pl-3">{event}</li>
                   ))}
                 </ul>

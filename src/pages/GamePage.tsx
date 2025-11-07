@@ -22,7 +22,8 @@ const SAVE_KEY = 'rpgNarratorSaveData';
 
 const GamePage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [storyLog, setStoryLog] = useState<StoryLogData>({ characters: [], setting: '', events: [] });
+  // Atualizado para usar os novos nomes do StoryLog
+  const [storyLog, setStoryLog] = useState<StoryLogData>({ castOfCharacters: [], worldAndSetting: '', keyPlotPoints: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [fanficContext, setFanficContext] = useState<string | undefined>(undefined);
@@ -85,7 +86,7 @@ const GamePage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `rpg-narrativa-${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = `narrativa-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -98,7 +99,7 @@ const GamePage: React.FC = () => {
       adventureId: adventureMetaRef.current.id,
       startedAt: adventureMetaRef.current.startedAt,
       endedAt: new Date().toISOString(),
-      messages: messages,
+      messages: messages.filter(msg => msg.id !== 'start-prompt'), // Filtra a mensagem de boas-vindas aqui também
       storyLog: storyLog,
       fanficContext: fanficContext,
     };
@@ -115,7 +116,6 @@ const GamePage: React.FC = () => {
     actionCountRef.current = 0;
   }, [messages, storyLog, fanficContext]);
 
-
   const sendMessage = useCallback(async (text: string) => {
     let userText = text;
 
@@ -124,11 +124,10 @@ const GamePage: React.FC = () => {
     }
 
     const newUserMessage: Message = { role: Roles.USER, text: userText, id: Date.now().toString() };
-    
     const currentHistory = [...messages, newUserMessage];
     setMessages(currentHistory);
     
-    if (actionCountRef.current >= 5) { // Aumentado para 5
+    if (actionCountRef.current >= 5) {
         handleSaveAdventure();
     } else {
         actionCountRef.current += 1;
@@ -136,13 +135,8 @@ const GamePage: React.FC = () => {
 
     setIsLoading(true);
     
-    // ====================================================================================
-    // MUDANÇA PRINCIPAL AQUI:
-    // Nós filtramos o histórico ANTES de enviá-lo para a GeminiService.
-    // Isso garante que a mensagem de 'start-prompt' nunca seja vista pela IA,
-    // resolvendo o erro 'First content should be with role 'user', got model'
-    // em todas as interações, não apenas na primeira.
-    // ====================================================================================
+    // A LÓGICA CRUCIAL ESTÁ AQUI:
+    // Filtramos o histórico para remover a mensagem de boas-vindas antes de enviar para a IA.
     const historyForApi = currentHistory.filter(msg => msg.id !== 'start-prompt');
     
     const responseText = await GeminiService.generateContent(
@@ -153,9 +147,7 @@ const GamePage: React.FC = () => {
     
     processApiResponse(responseText);
     setIsLoading(false);
-
   }, [messages, storyLog, fanficContext, handleSaveAdventure]);
-
 
   const handleContextSubmit = (context: string) => {
     setFanficContext(context || undefined);
@@ -167,7 +159,7 @@ const GamePage: React.FC = () => {
     setMessages([{ 
         role: Roles.MODEL, 
         text: "Bem-vindo, aventureiro! Antes de começarmos, descreva seu personagem.\n\nQuem é você? Qual sua aparência, suas habilidades? E que tipo de história você gostaria de viver?\n\n(Se preferir, deixe em branco e eu criarei um personagem padrão para você começar.)", 
-        id: 'start-prompt' // O id fixo que usamos para filtrar
+        id: 'start-prompt'
     }]);
   };
   
@@ -215,8 +207,9 @@ const GamePage: React.FC = () => {
       <header className="flex-shrink-0 bg-white/80 backdrop-blur-sm border-b border-stone-200 shadow-sm p-4 flex justify-between items-center z-10">
         <h1 className="text-xl md:text-2xl font-bold text-stone-800 font-serif">Narrador de Histórias AI</h1>
         <div className="flex items-center space-x-2">
-            <Link to="/historias" className="text-stone-600 hover:text-amber-700 transition-colors p-2 rounded-full hover:bg-stone-200" aria-label="Ver Histórico">
-              <Icon name="book" className="w-6 h-6" />
+            {/* Link para o Histórico, agora sem texto para ficar mais limpo */}
+            <Link to="/historias" className="p-2 rounded-full hover:bg-stone-200 transition-colors" aria-label="Ver Histórico de Aventuras">
+              <Icon name="book" className="w-6 h-6 text-stone-600" />
             </Link>
             <button 
                 onClick={handleSaveGame}

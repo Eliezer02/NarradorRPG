@@ -1,3 +1,5 @@
+// src/services/geminiService.ts
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Message, StoryLogData } from '../types';
 import { Roles } from '../types';
@@ -9,14 +11,12 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
+const MODEL_NAME = 'gemini-2.5-pro'; // O nome de modelo estável e correto.
 
-// Usando o modelo estável. Você pode experimentar outros no futuro.
-const MODEL_NAME = 'Gemini 2.5 Pro';
-
-// O prompt do sistema foi atualizado para focar em "Fanfics Interativas".
 const getSystemInstruction = (log: StoryLogData, history: Message[], fanficContext?: string): string => {
+  // Sua função getSystemInstruction (a versão para fanfics) permanece aqui.
+  // Cole o conteúdo completo dela. Apenas para garantir, aqui está ele:
   let initialPromptDirective = '';
-  // Esta condição para o primeiro turno ainda é útil e correta.
   if (history.length === 1 && history[0].role === Roles.USER) {
       initialPromptDirective = `
 **Starting the Story:**
@@ -50,13 +50,14 @@ ${JSON.stringify(log, null, 2)}
 \`\`\`
 
 ${fanficContext ? `**Inspirational Context:**
-The user has provided the following text for style, tone, and world-building inspiration. Use it as a guide.
+The user has provided the text for style, tone, and world-building inspiration. Use it as a guide.
 ---
 ${fanficContext}
 ---
 ` : ''}
 `;
 };
+
 
 const generateContent = async (
   history: Message[],
@@ -69,26 +70,14 @@ const generateContent = async (
       systemInstruction: getSystemInstruction(storyLog, history, fanficContext)
     });
 
-    // ====================================================================================
-    // MUDANÇA PRINCIPAL AQUI:
-    // A lógica condicional `history.length <= 2` foi removida.
-    // Agora que o GamePage.tsx nos envia um histórico limpo, este serviço
-    // pode ser muito mais simples e direto. Ele apenas prepara o histórico que recebe.
-    // ====================================================================================
+    // A lógica de chat simplificada. Espera um histórico já limpo.
     const chat = model.startChat({
-      // `slice(0, -1)` remove a última mensagem (a do usuário atual) do histórico de contexto.
       history: history.slice(0, -1).map(msg => ({
         role: msg.role === Roles.USER ? 'user' : 'model',
         parts: [{ text: msg.text }]
       })),
-      generationConfig: {
-        temperature: 0.8,
-        topP: 0.9,
-        topK: 40,
-      }
     });
 
-    // A última mensagem do histórico é a que a IA deve responder.
     const userMessage = history[history.length - 1].text;
     const result = await chat.sendMessage(userMessage);
     const response = result.response;
