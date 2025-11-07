@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { Message, StoryLogData, DiceRollRequest} from '../types'; 
-import { Roles } from '../types'; 
 import { Link } from 'react-router-dom';
+import type { Message, StoryLogData, DiceRollRequest } from '../types';
+import { Roles } from '../types';
 import { GeminiService } from '../services/geminiService';
 import { AdventureLogService } from '../services/adventureLogService';
 import { ChatBubble } from '../components/ChatBubble';
@@ -20,7 +20,7 @@ interface SaveState {
 
 const SAVE_KEY = 'rpgNarratorSaveData';
 
-const App: React.FC = () => {
+const GamePage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [storyLog, setStoryLog] = useState<StoryLogData>({ characters: [], setting: '', events: [] });
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +32,6 @@ const App: React.FC = () => {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const actionCountRef = useRef(0);
-  // Add a ref to store the session's unique ID and start time
   const adventureMetaRef = useRef({
     id: `adv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     startedAt: new Date().toISOString(),
@@ -104,7 +103,6 @@ const App: React.FC = () => {
       fanficContext: fanficContext,
     };
 
-    // This call is intentionally not awaited so it doesn't block the UI
     AdventureLogService.saveAdventure(payload)
       .then(response => {
         if (response.success) {
@@ -114,7 +112,7 @@ const App: React.FC = () => {
         }
       });
     
-    actionCountRef.current = 0; // Reset counter
+    actionCountRef.current = 0;
   }, [messages, storyLog, fanficContext]);
 
 
@@ -127,9 +125,10 @@ const App: React.FC = () => {
 
     const newUserMessage: Message = { role: Roles.USER, text: userText, id: Date.now().toString() };
     
-    setMessages(prevMessages => [...prevMessages, newUserMessage]);
+    const currentHistory = [...messages, newUserMessage];
+    setMessages(currentHistory);
     
-    if (actionCountRef.current >= 3) { // Check before increment. 3 + 1 = 4th action
+    if (actionCountRef.current >= 5) { // Aumentado para 5
         handleSaveAdventure();
     } else {
         actionCountRef.current += 1;
@@ -137,9 +136,17 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     
-    const currentHistory = [...messages, newUserMessage];
+    // ====================================================================================
+    // MUDANÇA PRINCIPAL AQUI:
+    // Nós filtramos o histórico ANTES de enviá-lo para a GeminiService.
+    // Isso garante que a mensagem de 'start-prompt' nunca seja vista pela IA,
+    // resolvendo o erro 'First content should be with role 'user', got model'
+    // em todas as interações, não apenas na primeira.
+    // ====================================================================================
+    const historyForApi = currentHistory.filter(msg => msg.id !== 'start-prompt');
+    
     const responseText = await GeminiService.generateContent(
-      currentHistory,
+      historyForApi,
       storyLog,
       fanficContext
     );
@@ -153,7 +160,6 @@ const App: React.FC = () => {
   const handleContextSubmit = (context: string) => {
     setFanficContext(context || undefined);
     setGameStarted(true);
-    // Reset adventure metadata for new game
     adventureMetaRef.current = {
       id: `adv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       startedAt: new Date().toISOString(),
@@ -161,7 +167,7 @@ const App: React.FC = () => {
     setMessages([{ 
         role: Roles.MODEL, 
         text: "Bem-vindo, aventureiro! Antes de começarmos, descreva seu personagem.\n\nQuem é você? Qual sua aparência, suas habilidades? E que tipo de história você gostaria de viver?\n\n(Se preferir, deixe em branco e eu criarei um personagem padrão para você começar.)", 
-        id: 'start-prompt' 
+        id: 'start-prompt' // O id fixo que usamos para filtrar
     }]);
   };
   
@@ -194,7 +200,6 @@ const App: React.FC = () => {
       setFanficContext(savedState.fanficContext);
       setGameStarted(savedState.gameStarted);
       actionCountRef.current = savedState.actionCount;
-      // Re-initialize adventure meta for loaded game
       adventureMetaRef.current = {
         id: `adv_loaded_${Date.now()}`,
         startedAt: new Date().toISOString(),
@@ -208,8 +213,11 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-screen bg-stone-100 flex flex-col font-sans">
       <header className="flex-shrink-0 bg-white/80 backdrop-blur-sm border-b border-stone-200 shadow-sm p-4 flex justify-between items-center z-10">
-        <h1 className="text-xl md:text-2xl font-bold text-stone-800 font-serif">Narrador de RPG AI</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-stone-800 font-serif">Narrador de Histórias AI</h1>
         <div className="flex items-center space-x-2">
+            <Link to="/historias" className="text-stone-600 hover:text-amber-700 transition-colors p-2 rounded-full hover:bg-stone-200" aria-label="Ver Histórico">
+              <Icon name="book" className="w-6 h-6" />
+            </Link>
             <button 
                 onClick={handleSaveGame}
                 disabled={!gameStarted}
@@ -275,4 +283,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default GamePage;
