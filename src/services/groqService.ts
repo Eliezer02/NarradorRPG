@@ -1,26 +1,26 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from 'groq-sdk';
 import type { Message, StoryLogData } from '../types';
 import { Roles } from '../types';
-import { GroqService } from './groqService';
 
-// ====================================================================================
-// MUDANÇA 1: Definimos a "forma" da nossa resposta padronizada.
-// Isso garante que tanto o Gemini quanto o Groq retornem dados no mesmo formato.
-// ====================================================================================
-export interface ApiResponse {
+const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
+
+if (!groqApiKey) {
+  console.warn("VITE_GROQ_API_KEY is not defined. Fallback service will not be available.");
+}
+
+const groq = groqApiKey ? new Groq({ apiKey: groqApiKey, dangerouslyAllowBrowser: true }) : null;
+
+// Interface para o nosso objeto de resposta padronizado
+interface ApiResponse {
   text: string;
   source: 'Gemini' | 'Groq';
 }
 
-const apiKey = import.meta.env.VITE_API_KEY;
-
-if (!apiKey) {
-  throw new Error("VITE_API_KEY environment variable not set. Please check your .env.local file.");
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
-const MODEL_NAME = 'gemini-2.5-pro'; 
-
+// ====================================================================================
+// NOTA IMPORTANTE: Esta função é uma cópia da que está em geminiService.ts.
+// No futuro, seria uma boa prática mover esta função para um arquivo compartilhado
+// (ex: src/lib/promptHelper.ts) para não ter código duplicado.
+// ====================================================================================
 const getSystemInstruction = (log: StoryLogData, history: Message[], fanficContext?: string): string => {
   let initialPromptDirective = '';
   if (history.length === 1 && history[0].role === Roles.USER) {
@@ -64,43 +64,55 @@ ${fanficContext}
 `;
 };
 
-// ====================================================================================
-// MUDANÇA 2: A função agora promete retornar uma ApiResponse, não mais uma string.
-// ====================================================================================
-const generateContent = async (
+const generateContentWithGroq = async (
   history: Message[],
   storyLog: StoryLogData,
   fanficContext?: string
 ): Promise<ApiResponse> => {
+  if (!groq) {
+    return { text: "Serviço de fallback (Groq) não está configurado.", source: 'Groq' };
+  }
+
   try {
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: getSystemInstruction(storyLog, history, fanficContext) });
-    const chat = model.startChat({ history: history.slice(0, -1).map(msg => ({ role: msg.role === Roles.USER ? 'user' : 'model', parts: [{ text: msg.text }] })) });
-    const userMessage = history[history.length - 1].text;
-    const result = await chat.sendMessage(userMessage);
-    const response = result.response;
+    const systemInstruction = getSystemInstruction(storyLog, history, fanficContext);
     
-    // MUDANÇA 3: Retornamos o objeto completo, não apenas o texto.
-    return { text: response.text(), source: 'Gemini' };
+    // ====================================================================================
+    // MUDANÇA PRINCIPAL AQUI: Correção de Tipagem
+    // Usamos 'as const' para dizer ao TypeScript que os valores de 'role' são literais,
+    // o que satisfaz a tipagem estrita da biblioteca da Groq.
+    // ====================================================================================
+    const systemMessage = { role: "system" as const, content: systemInstruction };
+    
+    const conversationMessages = history.map(msg => ({
+      role: msg.role === Roles.USER ? "user" as const : "assistant" as const, // Groq usa 'assistant' para as respostas da IA
+      content: msg.text,
+    }));
+
+    const messagesForApi = [
+      systemMessage,
+      ...conversationMessages
+    ];
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: messagesForApi,
+      model: "llama3-8b-8192",
+      temperature: 0.8,
+      top_p: 0.9,
+    });
+
+    const responseText = chatCompletion.choices[0]?.message?.content || "O narrador alternativo ficou sem palavras.";
+    return { text: responseText, source: 'Groq' };
 
   } catch (error) {
-    console.error("Error with Gemini, attempting fallback to Groq:", error);
-
-    // O fallback agora chama o GroqService, que já retorna uma ApiResponse.
-    const errorMessage = error instanceof Error ? error.toString() : String(error);
-
-    if (errorMessage.includes('503') || errorMessage.includes('400') || errorMessage.includes('404')) {
-        console.log("Gemini failed. Calling Groq as a fallback...");
-        return GroqService.generateContent(history, storyLog, fanficContext);
-    }
-    
-    // MUDANÇA 4: Os retornos de erro também são convertidos para o formato ApiResponse.
+    console.error("Error generating content with Groq:", error);
+    // Aqui a verificação 'instanceof Error' já é suficiente e correta.
     if (error instanceof Error) {
-        return { text: `Desculpe, ocorreu um erro com a IA: ${error.message}`, source: 'Gemini' };
+        return { text: `Desculpe, o narrador alternativo (Groq) também encontrou um erro: ${error.message}`, source: 'Groq' };
     }
-    return { text: "Desculpe, o mestre da masmorra parece estar tirando uma soneca.", source: 'Gemini' };
+    return { text: "O narrador alternativo também está tirando uma soneca.", source: 'Groq' };
   }
 };
 
-export const GeminiService = {
-  generateContent,
+export const GroqService = {
+  generateContent: generateContentWithGroq,
 };

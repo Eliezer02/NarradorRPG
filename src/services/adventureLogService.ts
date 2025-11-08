@@ -1,13 +1,9 @@
-// services/adventureLogService.ts
+// src/services/adventureLogService.ts
 
-import type{ Message, StoryLogData } from '../types';
+import type { Message, StoryLogData } from '../types';
 
-/**
- * Represents the complete data package for a single adventure session.
- * This is what will be saved to your database.
- */
 export interface AdventurePayload {
-  adventureId: string; // A unique ID for this game session
+  adventureId: string;
   startedAt: string;
   endedAt: string;
   messages: Message[];
@@ -15,57 +11,39 @@ export interface AdventurePayload {
   fanficContext?: string;
 }
 
-/**
- * Simulates saving the adventure to a backend.
- * In a real application, you would replace the setTimeout with a `fetch` call
- * to your backend endpoint (e.g., a Supabase Edge Function).
- *
- * @param payload The complete adventure data.
- */
 const saveAdventure = async (payload: AdventurePayload): Promise<{ success: boolean; message: string }> => {
-  console.log('--- SIMULATING ADVENTURE SAVE ---');
-  console.log('Payload sent to backend:', payload);
+  console.log('--- SENDING ADVENTURE TO REAL BACKEND ---');
+  console.log('Payload:', payload);
 
-  // =================================================================
-  // ==  AQUI VOCÊ IRÁ SUBSTITUIR PELO SEU CÓDIGO DE BACKEND         ==
-  // =================================================================
-  //
-  // Exemplo com fetch para uma Supabase Edge Function:
-  //
-  // try {
-  //   const response = await fetch('https://<seu-projeto>.supabase.co/functions/v1/save-adventure', {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //       'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`, // Ou sua chave de serviço se for do lado do servidor
-  //     },
-  //     body: JSON.stringify(payload),
-  //   });
-  //
-  //   if (!response.ok) {
-  //     throw new Error(`Failed to save adventure: ${response.statusText}`);
-  //   }
-  //
-  //   const result = await response.json();
-  //   console.log('Adventure saved successfully:', result);
-  //   return { success: true, message: 'Adventure saved!' };
-  //
-  // } catch (error) {
-  //   console.error('Error saving adventure:', error);
-  //   return { success: false, message: 'Failed to save adventure.' };
-  // }
-  //
-  // =================================================================
-  
-  // Simulating network delay
-  return new Promise(resolve => {
-    setTimeout(() => {
-      console.log('--- SIMULATION COMPLETE ---');
-      resolve({ success: true, message: 'Adventure saved successfully (simulated).' });
-    }, 1000);
-  });
+  try {
+    // A URL '/api/save-adventure' funciona tanto localmente (com 'vercel dev')
+    // quanto em produção na Vercel.
+    const response = await fetch('/api/save-adventure', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        // Lançamos um erro para que ele seja pego pelo bloco catch abaixo.
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Backend response:', result.message);
+    return { success: true, message: 'Adventure saved to backend.' };
+
+  } catch (error) {
+    const err = error as Error;
+    console.error('Error saving adventure to backend:', err.message);
+    // Mesmo que falhe, retornamos sucesso para o frontend não travar a experiência do usuário.
+    // O erro importante fica registrado no console do desenvolvedor (aqui) ou nos logs da Vercel.
+    return { success: false, message: err.message };
+  }
 };
-
 
 export const AdventureLogService = {
   saveAdventure,
