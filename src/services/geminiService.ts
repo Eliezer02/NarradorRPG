@@ -1,15 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Message, StoryLogData } from '../types';
 import { Roles } from '../types';
-import { GroqService } from './groqService';
+import { XAIService } from './xaiService'; // MUDANÇA: Importa o novo serviço da xAI
 
-// ====================================================================================
-// MUDANÇA 1: Definimos a "forma" da nossa resposta padronizada.
-// Isso garante que tanto o Gemini quanto o Groq retornem dados no mesmo formato.
-// ====================================================================================
-export interface ApiResponse {
+// Interface para o retorno padronizado
+interface ApiResponse {
   text: string;
-  source: 'Gemini' | 'Groq';
+  source: 'Gemini' | 'Grok'; // MUDANÇA: Atualizado para 'Grok'
 }
 
 const apiKey = import.meta.env.VITE_API_KEY;
@@ -19,7 +16,7 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const MODEL_NAME = 'gemini-2.5-pro'; 
+const MODEL_NAME = 'gemini-2.5-pro';
 
 const getSystemInstruction = (log: StoryLogData, history: Message[], fanficContext?: string): string => {
   let initialPromptDirective = '';
@@ -64,38 +61,44 @@ ${fanficContext}
 `;
 };
 
-// ====================================================================================
-// MUDANÇA 2: A função agora promete retornar uma ApiResponse, não mais uma string.
-// ====================================================================================
+
 const generateContent = async (
   history: Message[],
   storyLog: StoryLogData,
   fanficContext?: string
 ): Promise<ApiResponse> => {
   try {
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME, systemInstruction: getSystemInstruction(storyLog, history, fanficContext) });
-    const chat = model.startChat({ history: history.slice(0, -1).map(msg => ({ role: msg.role === Roles.USER ? 'user' : 'model', parts: [{ text: msg.text }] })) });
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      systemInstruction: getSystemInstruction(storyLog, history, fanficContext)
+    });
+
+    const chat = model.startChat({
+      history: history.slice(0, -1).map(msg => ({
+        role: msg.role === Roles.USER ? 'user' : 'model',
+        parts: [{ text: msg.text }]
+      })),
+    });
+
     const userMessage = history[history.length - 1].text;
     const result = await chat.sendMessage(userMessage);
     const response = result.response;
     
-    // MUDANÇA 3: Retornamos o objeto completo, não apenas o texto.
     return { text: response.text(), source: 'Gemini' };
 
   } catch (error) {
-    console.error("Error with Gemini, attempting fallback to Groq:", error);
+    console.error("Error with Gemini, attempting fallback to Grok (xAI):", error);
 
-    // O fallback agora chama o GroqService, que já retorna uma ApiResponse.
     const errorMessage = error instanceof Error ? error.toString() : String(error);
 
-    if (errorMessage.includes('503') || errorMessage.includes('400') || errorMessage.includes('404')) {
-        console.log("Gemini failed. Calling Groq as a fallback...");
-        return GroqService.generateContent(history, storyLog, fanficContext);
+    if (errorMessage.includes('503') || errorMessage.includes('400') || errorMessage.includes('404') || errorMessage.includes('429')) {
+        console.log("Gemini failed with a recoverable error. Calling Grok (xAI) as a fallback...");
+        // MUDANÇA: Chamando o XAIService em vez do GroqService
+        return XAIService.generateContent(history, storyLog, fanficContext);
     }
     
-    // MUDANÇA 4: Os retornos de erro também são convertidos para o formato ApiResponse.
     if (error instanceof Error) {
-        return { text: `Desculpe, ocorreu um erro com a IA: ${error.message}`, source: 'Gemini' };
+        return { text: `Desculpe, ocorreu um erro inesperado com a IA: ${error.message}`, source: 'Gemini' };
     }
     return { text: "Desculpe, o mestre da masmorra parece estar tirando uma soneca.", source: 'Gemini' };
   }
