@@ -86,7 +86,7 @@ const generateContentWithGrok = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "grok-1", // Modelo da xAI
+        model: "grok-3-mini", // Modelo da xAI
         messages: messagesForApi,
         temperature: 0.8,
         top_p: 0.9,
