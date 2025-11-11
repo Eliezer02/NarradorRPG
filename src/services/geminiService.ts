@@ -16,7 +16,7 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const MODEL_NAME = 'gemini-2.0-flash-live';
+const MODEL_NAME = 'learnlm-2.0-flash-experimental';
 
 const getSystemInstruction = (log: StoryLogData, history: Message[], fanficContext?: string): string => {
   let initialPromptDirective = '';
