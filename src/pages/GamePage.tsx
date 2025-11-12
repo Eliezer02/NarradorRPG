@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+//import { Link } from 'react-router-dom';
 import type { Message, StoryLogData, DiceRollRequest } from '../types';
 import { Roles } from '../types';
 import { GeminiService } from '../services/geminiService';
