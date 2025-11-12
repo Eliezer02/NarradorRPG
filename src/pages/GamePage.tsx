@@ -211,9 +211,9 @@ const GamePage: React.FC = () => {
       <header className="flex-shrink-0 bg-white/80 backdrop-blur-sm border-b border-stone-200 shadow-sm p-4 flex justify-between items-center z-10">
         <h1 className="text-xl md:text-2xl font-bold text-stone-800 font-serif">Narrador de Histórias AI</h1>
         <div className="flex items-center space-x-2">
-            <Link to="/historias" className="p-2 rounded-full hover:bg-stone-200 transition-colors" aria-label="Ver Histórico de Aventuras">
+            {/*<Link to="/historias" className="p-2 rounded-full hover:bg-stone-200 transition-colors" aria-label="Ver Histórico de Aventuras">
               <Icon name="book" className="w-6 h-6 text-stone-600" />
-            </Link>
+            </Link> */}
             <button 
                 onClick={handleSaveGame}
                 disabled={!gameStarted}
